@@ -1,32 +1,22 @@
 using UnityEngine;
+using UnityEngine.InputSystem;
 
 public class HandController : MonoBehaviour
 {
     public RectTransform handCursor;
-    public Canvas canvas;
 
     public Vector2 HandScreenPosition { get; private set; }
 
     void Update()
     {
-        HandScreenPosition = Input.mousePosition;
-
-        if (handCursor == null || canvas == null)
+        if (Mouse.current == null)
             return;
 
-        RectTransform canvasRect = canvas.GetComponent<RectTransform>();
+        HandScreenPosition = Mouse.current.position.ReadValue();
 
-        Vector2 localPoint;
-
-        RectTransformUtility.ScreenPointToLocalPointInRectangle(
-            canvasRect,
-            HandScreenPosition,
-            canvas.renderMode == RenderMode.ScreenSpaceOverlay
-                ? null
-                : canvas.worldCamera,
-            out localPoint
-        );
-
-        handCursor.localPosition = localPoint;
+        if (handCursor != null)
+        {
+            handCursor.position = HandScreenPosition;
+        }
     }
 }
