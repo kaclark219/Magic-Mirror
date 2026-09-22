@@ -576,6 +576,7 @@ GameObject:
   - component: {fileID: 710061563}
   - component: {fileID: 710061565}
   - component: {fileID: 710061564}
+  - component: {fileID: 710061566}
   m_Layer: 5
   m_Name: Clothing1
   m_TagString: Untagged
@@ -640,6 +641,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 710061562}
   m_CullTransparentMesh: 1
+--- !u!114 &710061566
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 710061562}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb7408404ef990a8480917de701bacd2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DwellSelectionBox
+  dwellTime: 3
+  manager: {fileID: 1653278291}
 --- !u!1 &832575517
 GameObject:
   m_ObjectHideFlags: 0
@@ -700,6 +715,7 @@ GameObject:
   - component: {fileID: 1334191332}
   - component: {fileID: 1334191334}
   - component: {fileID: 1334191333}
+  - component: {fileID: 1334191335}
   m_Layer: 5
   m_Name: Clothing2
   m_TagString: Untagged
@@ -764,6 +780,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1334191331}
   m_CullTransparentMesh: 1
+--- !u!114 &1334191335
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1334191331}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb7408404ef990a8480917de701bacd2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DwellSelectionBox
+  dwellTime: 3
+  manager: {fileID: 1653278291}
 --- !u!1 &1521302509
 GameObject:
   m_ObjectHideFlags: 0
@@ -775,6 +805,7 @@ GameObject:
   - component: {fileID: 1521302510}
   - component: {fileID: 1521302512}
   - component: {fileID: 1521302511}
+  - component: {fileID: 1521302513}
   m_Layer: 5
   m_Name: Clothing4
   m_TagString: Untagged
@@ -839,6 +870,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1521302509}
   m_CullTransparentMesh: 1
+--- !u!114 &1521302513
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1521302509}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb7408404ef990a8480917de701bacd2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DwellSelectionBox
+  dwellTime: 3
+  manager: {fileID: 1653278291}
 --- !u!1 &1550571354
 GameObject:
   m_ObjectHideFlags: 0
@@ -850,6 +895,7 @@ GameObject:
   - component: {fileID: 1550571355}
   - component: {fileID: 1550571357}
   - component: {fileID: 1550571356}
+  - component: {fileID: 1550571358}
   m_Layer: 5
   m_Name: Clothing3
   m_TagString: Untagged
@@ -914,6 +960,20 @@ CanvasRenderer:
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1550571354}
   m_CullTransparentMesh: 1
+--- !u!114 &1550571358
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1550571354}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: fb7408404ef990a8480917de701bacd2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::DwellSelectionBox
+  dwellTime: 3
+  manager: {fileID: 1653278291}
 --- !u!1 &1653278288
 GameObject:
   m_ObjectHideFlags: 0
@@ -924,6 +984,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1653278289}
   - component: {fileID: 1653278290}
+  - component: {fileID: 1653278291}
   m_Layer: 0
   m_Name: KinectManager
   m_TagString: Untagged
@@ -958,6 +1019,24 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: deb59c2fca51ae868ac7006a76729d61, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KinectTest
+--- !u!114 &1653278291
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1653278288}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 71b2123831d50f569b0ffd9227cdb61c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::GestureUIManager
+  handController: {fileID: 1916706775}
+  clothingBoxes:
+  - {fileID: 710061566}
+  - {fileID: 1334191335}
+  - {fileID: 1550571358}
+  - {fileID: 1521302513}
 --- !u!1 &1808729634
 GameObject:
   m_ObjectHideFlags: 0
@@ -1081,7 +1160,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: 127d0da597cb30e979e1ac01f112deaf, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HandController
-  handCursor: {fileID: 0}
+  handCursor: {fileID: 580415768}
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
