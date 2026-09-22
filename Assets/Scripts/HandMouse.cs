@@ -3,6 +3,7 @@ using UnityEngine;
 public class HandController : MonoBehaviour
 {
     public RectTransform handCursor;
+    public Canvas canvas;
 
     public Vector2 HandScreenPosition { get; private set; }
 
@@ -10,6 +11,22 @@ public class HandController : MonoBehaviour
     {
         HandScreenPosition = Input.mousePosition;
 
-        handCursor.position = HandScreenPosition;
+        if (handCursor == null || canvas == null)
+            return;
+
+        RectTransform canvasRect = canvas.GetComponent<RectTransform>();
+
+        Vector2 localPoint;
+
+        RectTransformUtility.ScreenPointToLocalPointInRectangle(
+            canvasRect,
+            HandScreenPosition,
+            canvas.renderMode == RenderMode.ScreenSpaceOverlay
+                ? null
+                : canvas.worldCamera,
+            out localPoint
+        );
+
+        handCursor.localPosition = localPoint;
     }
 }
