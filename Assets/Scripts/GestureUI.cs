@@ -1,9 +1,16 @@
+using System.Collections.Generic;
 using UnityEngine;
 
 public class GestureUIManager : MonoBehaviour
 {
     public HandController handController;
+
+    // The clothing items. Dwell completion here is a final selection.
     public DwellSelectionBox[] clothingBoxes;
+    [SerializeField] private List<DwellSelectionBox> carouselButtons =
+        new List<DwellSelectionBox>();
+
+    [SerializeField] private CarouselController carousel;
 
     private bool selectionMade = false;
 
@@ -19,6 +26,28 @@ public class GestureUIManager : MonoBehaviour
         {
             box.UpdateHover(handPosition);
         }
+
+        foreach (DwellSelectionBox button in carouselButtons)
+        {
+            button.UpdateHover(handPosition);
+        }
+    }
+
+
+    public void OnPreviousClicked()
+    {
+        if (selectionMade)
+            return;
+
+        carousel?.Previous();
+    }
+
+    public void OnNextClicked()
+    {
+        if (selectionMade)
+            return;
+
+        carousel?.Next();
     }
 
     public void OnClothingSelected(DwellSelectionBox selectedBox)
@@ -30,6 +59,11 @@ public class GestureUIManager : MonoBehaviour
         foreach (DwellSelectionBox box in clothingBoxes)
         {
             box.gameObject.SetActive(false);
+        }
+
+        foreach (DwellSelectionBox button in carouselButtons)
+        {
+            button.gameObject.SetActive(false);
         }
     }
 }
