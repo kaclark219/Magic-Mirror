@@ -3,10 +3,6 @@ using System.Threading;
 using UnityEngine;
 
 using Microsoft.Azure.Kinect.Sensor;
-using Microsoft.Azure.Kinect.BodyTracking;
-
-using KinectJoint =
-    Microsoft.Azure.Kinect.BodyTracking.Joint;
 
 
 public class KinectManager : MonoBehaviour
@@ -17,111 +13,29 @@ public class KinectManager : MonoBehaviour
         private set;
     }
 
+    public const int ColorWidth = 1280;
+    public const int ColorHeight = 720;
     public Device Device
     {
         get;
         private set;
     }
 
-    public Calibration Calibration
-    {
-        get;
-        private set;
-    }
+    private Thread cameraThread;
 
-    private Tracker bodyTracker;
-
-    private Thread trackingThread;
-
-    private volatile bool trackingThreadRunning = false;
+    private volatile bool cameraThreadRunning = false;
     private volatile bool shuttingDown = false;
 
     private readonly object errorLock = new object();
+
     private string pendingWorkerError = null;
-
-    private int capturedFrameCount = 0;
-    private float nextStatusLogTime = 0f;
-
-
-    public int CapturedFrameCount
-    {
-        get
-        {
-            return capturedFrameCount;
-        }
-    }
-
-    private readonly object bodyLock = new object();
-
-    private bool bodyDetected = false;
-
-    private KinectJoint rightHandJoint;
-    private KinectJoint rightHandTipJoint;
-
-
-    public bool BodyDetected
-    {
-        get
-        {
-            lock (bodyLock)
-            {
-                return bodyDetected;
-            }
-        }
-    }
-
-
-    public KinectJoint RightHandJoint
-    {
-        get
-        {
-            lock (bodyLock)
-            {
-                return rightHandJoint;
-            }
-        }
-    }
-
-
-    public KinectJoint RightHandTipJoint
-    {
-        get
-        {
-            lock (bodyLock)
-            {
-                return rightHandTipJoint;
-            }
-        }
-    }
-
-
-    // ============================================================
-    // COLOR FRAME DATA
-    // ============================================================
 
     private readonly object colorLock = new object();
 
     private byte[] latestColorData = null;
+    private byte[] displayedColorData = null;
+
     private bool newColorFrameAvailable = false;
-
-
-    public bool TryGetColorFrame(out byte[] colorData)
-    {
-        lock (colorLock)
-        {
-            if (!newColorFrameAvailable ||
-                latestColorData == null)
-            {
-                colorData = null;
-                return false;
-            }
-
-            colorData = latestColorData;
-            newColorFrameAvailable = false;
-
-            return true;
-        }
-    }
 
     private void Awake()
     {
@@ -141,14 +55,47 @@ public class KinectManager : MonoBehaviour
         InitializeKinect();
     }
 
+    public bool TryGetColorFrame(
+        out byte[] colorData)
+    {
+        lock (colorLock)
+        {
+            if (!newColorFrameAvailable ||
+                latestColorData == null)
+            {
+                colorData = null;
+                return false;
+            }
+
+            byte[] reusableBuffer =
+                displayedColorData;
+
+            displayedColorData =
+                latestColorData;
+
+            latestColorData =
+                reusableBuffer;
+
+
+            colorData =
+                displayedColorData;
+
+
+            newColorFrameAvailable =
+                false;
+
+
+            return true;
+        }
+    }
+
     private void InitializeKinect()
     {
         try
         {
             Debug.Log(
-                "Opening Azure Kinect..."
+                "Opening Azure Kinect RGB camera..."
             );
-
 
             Device =
                 Device.Open(0);
@@ -158,7 +105,6 @@ public class KinectManager : MonoBehaviour
                 "Azure Kinect opened."
             );
 
-
             DeviceConfiguration config =
                 new DeviceConfiguration
                 {
@@ -166,10 +112,10 @@ public class KinectManager : MonoBehaviour
                         ImageFormat.ColorBGRA32,
 
                     ColorResolution =
-                        ColorResolution.R1080p,
+                        ColorResolution.R720p,
 
                     DepthMode =
-                        DepthMode.WFOV_2x2Binned,
+                        DepthMode.Off,
 
                     CameraFPS =
                         FPS.FPS30,
@@ -178,9 +124,8 @@ public class KinectManager : MonoBehaviour
                         false
                 };
 
-
             Debug.Log(
-                "Starting COLOR-ONLY Azure Kinect..."
+                "Starting Azure Kinect RGB camera..."
             );
 
 
@@ -190,88 +135,47 @@ public class KinectManager : MonoBehaviour
 
 
             Debug.Log(
-                "Color camera started."
+                "Azure Kinect RGB camera started."
             );
-
-            Calibration =
-                Device.GetCalibration(
-                    DepthMode.WFOV_2x2Binned,
-                    ColorResolution.R1080p
-                );
-
-            Debug.Log(
-                "Kinect calibration loaded."
-            );
-
-            TrackerConfiguration trackerConfig =
-                TrackerConfiguration.Default;
-
-            trackerConfig.ProcessingMode =
-                TrackerProcessingMode.Cpu;
-
-            trackerConfig.SensorOrientation =
-                SensorOrientation.Default;
-
-            trackerConfig.ModelPath =
-                "/usr/bin/dnn_model_2_0_op11.onnx";
-
-            Debug.Log(
-                "Creating body tracker in CPU mode..."
-            );
-
-            bodyTracker =
-                Tracker.Create(
-                    Calibration,
-                    trackerConfig
-                );
-
-            Debug.Log(
-                "Azure Kinect Body Tracker initialized."
-            );
-
-
-            capturedFrameCount = 0;
-
-            lock (bodyLock)
-            {
-                bodyDetected = false;
-            }
 
             lock (colorLock)
             {
                 latestColorData = null;
-                newColorFrameAvailable = false;
+                displayedColorData = null;
+
+                newColorFrameAvailable =
+                    false;
             }
 
             shuttingDown = false;
-            trackingThreadRunning = true;
+            cameraThreadRunning = true;
 
 
-            trackingThread =
+            cameraThread =
                 new Thread(
-                    TrackingLoop
+                    CameraLoop
                 );
 
 
-            trackingThread.IsBackground =
+            cameraThread.IsBackground =
                 true;
 
 
-            trackingThread.Name =
-                "Azure Kinect Camera";
+            cameraThread.Name =
+                "Azure Kinect RGB Camera";
 
 
-            trackingThread.Start();
+            cameraThread.Start();
 
 
             Debug.Log(
-                "Kinect camera thread started."
+                "Azure Kinect camera thread started."
             );
         }
         catch (Exception ex)
         {
             Debug.LogError(
-                "Failed to initialize Kinect:\n" +
+                "Failed to initialize Azure Kinect:\n" +
                 ex
             );
 
@@ -280,20 +184,20 @@ public class KinectManager : MonoBehaviour
         }
     }
 
-    private void TrackingLoop()
+    private void CameraLoop()
     {
+        byte[] captureColorData = null;
 
         TimeSpan captureTimeout =
             TimeSpan.FromSeconds(2);
 
 
-        while (trackingThreadRunning)
+        while (cameraThreadRunning)
         {
             Capture capture = null;
 
             try
             {
-
                 try
                 {
                     capture =
@@ -303,11 +207,12 @@ public class KinectManager : MonoBehaviour
                 }
                 catch (TimeoutException)
                 {
+
                     continue;
                 }
 
 
-                if (!trackingThreadRunning)
+                if (!cameraThreadRunning)
                 {
                     break;
                 }
@@ -318,21 +223,88 @@ public class KinectManager : MonoBehaviour
                     continue;
                 }
 
+                for (int skipped = 0; skipped < 8 && cameraThreadRunning; skipped++)
+                {
+                    Capture newerCapture = null;
 
-                Interlocked.Increment(
-                    ref capturedFrameCount
-                );
+
+                    try
+                    {
+                        newerCapture =
+                            Device.GetCapture(
+                                TimeSpan.Zero
+                            );
+                    }
+                    catch (TimeoutException)
+                    {
+                        break;
+                    }
+
+
+                    if (newerCapture == null)
+                    {
+                        break;
+                    }
+
+
+                    if (newerCapture.Color == null)
+                    {
+                        newerCapture.Dispose();
+                        continue;
+                    }
+
+
+                    Capture olderCapture =
+                        capture;
+
+
+                    capture =
+                        newerCapture;
+
+
+                    olderCapture.Dispose();
+                }
+
+
+                if (!cameraThreadRunning)
+                {
+                    break;
+                }
+
 
                 if (capture.Color != null)
                 {
-                    byte[] frameData =
-                        capture.Color.Memory.ToArray();
+                    var colorMemory =
+                        capture.Color.Memory;
 
+                    if (captureColorData == null ||
+                        captureColorData.Length !=
+                        colorMemory.Length)
+                    {
+                        captureColorData =
+                            new byte[
+                                colorMemory.Length
+                            ];
+                    }
+
+
+                    colorMemory.Span.CopyTo(
+                        captureColorData.AsSpan()
+                    );
 
                     lock (colorLock)
                     {
+                        byte[] reusableBuffer =
+                            latestColorData;
+
+
                         latestColorData =
-                            frameData;
+                            captureColorData;
+
+
+                        captureColorData =
+                            reusableBuffer;
+
 
                         newColorFrameAvailable =
                             true;
@@ -345,7 +317,6 @@ public class KinectManager : MonoBehaviour
                 {
                     break;
                 }
-
 
                 lock (errorLock)
                 {
@@ -391,6 +362,7 @@ public class KinectManager : MonoBehaviour
                 error =
                     pendingWorkerError;
 
+
                 pendingWorkerError =
                     null;
             }
@@ -400,20 +372,8 @@ public class KinectManager : MonoBehaviour
         if (!string.IsNullOrEmpty(error))
         {
             Debug.LogError(
-                "KINECT WORKER EXCEPTION:\n" +
+                "AZURE KINECT CAMERA ERROR:\n" +
                 error
-            );
-        }
-
-        if (Time.time >= nextStatusLogTime)
-        {
-            nextStatusLogTime =
-                Time.time + 2f;
-
-
-            Debug.Log(
-                "Kinect captures received: " +
-                CapturedFrameCount
             );
         }
     }
@@ -427,42 +387,41 @@ public class KinectManager : MonoBehaviour
 
 
         shuttingDown = true;
-        trackingThreadRunning = false;
+        cameraThreadRunning = false;
 
 
         Debug.Log(
-            "Beginning Kinect shutdown..."
+            "Beginning Azure Kinect shutdown..."
         );
 
-        if (trackingThread != null &&
-            trackingThread.IsAlive)
+        if (cameraThread != null &&
+            cameraThread.IsAlive)
         {
             Debug.Log(
                 "Waiting for camera worker to finish..."
             );
 
             bool exited =
-                trackingThread.Join(5000);
+                cameraThread.Join(5000);
 
 
             if (!exited)
             {
                 Debug.LogError(
-                    "Kinect camera worker did not exit " +
-                    "within 5 seconds. Native cleanup " +
-                    "has been skipped to avoid an " +
-                    "Editor hang."
+                    "Azure Kinect camera worker did not " +
+                    "exit within 5 seconds. Native cleanup " +
+                    "was skipped to avoid an Editor hang."
                 );
 
 
-                trackingThread = null;
+                cameraThread = null;
 
                 return;
             }
         }
 
 
-        trackingThread = null;
+        cameraThread = null;
 
 
         Debug.Log(
@@ -470,53 +429,12 @@ public class KinectManager : MonoBehaviour
         );
 
 
-        if (bodyTracker != null)
-        {
-            try
-            {
-                Debug.Log(
-                    "Shutting down body tracker..."
-                );
-
-
-                bodyTracker.Shutdown();
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning(
-                    "Body tracker shutdown warning: " +
-                    ex.Message
-                );
-            }
-
-
-            try
-            {
-                Debug.Log(
-                    "Disposing body tracker..."
-                );
-
-
-                bodyTracker.Dispose();
-            }
-            catch (Exception ex)
-            {
-                Debug.LogWarning(
-                    "Body tracker dispose warning: " +
-                    ex.Message
-                );
-            }
-
-
-            bodyTracker = null;
-        }
-
         if (Device != null)
         {
             try
             {
                 Debug.Log(
-                    "Stopping Kinect cameras..."
+                    "Stopping Azure Kinect camera..."
                 );
 
 
@@ -530,11 +448,10 @@ public class KinectManager : MonoBehaviour
                 );
             }
 
-
             try
             {
                 Debug.Log(
-                    "Disposing Kinect device..."
+                    "Disposing Azure Kinect device..."
                 );
 
 
@@ -552,51 +469,24 @@ public class KinectManager : MonoBehaviour
             Device = null;
         }
 
-        lock (bodyLock)
-        {
-            bodyDetected = false;
-        }
-
-
         lock (colorLock)
         {
             latestColorData = null;
-            newColorFrameAvailable = false;
+            displayedColorData = null;
+
+            newColorFrameAvailable =
+                false;
         }
 
 
         Debug.Log(
-            "Kinect shutdown complete."
+            "Azure Kinect shutdown complete."
         );
     }
-
     private void SafeCleanupAfterInitializationFailure()
     {
-        trackingThreadRunning = false;
+        cameraThreadRunning = false;
         shuttingDown = true;
-
-        if (bodyTracker != null)
-        {
-            try
-            {
-                bodyTracker.Shutdown();
-            }
-            catch
-            {
-            }
-
-
-            try
-            {
-                bodyTracker.Dispose();
-            }
-            catch
-            {
-            }
-
-
-            bodyTracker = null;
-        }
 
 
         if (Device != null)
@@ -616,6 +506,7 @@ public class KinectManager : MonoBehaviour
             }
             catch
             {
+                // Ignore cleanup failures here.
             }
 
 
@@ -623,19 +514,15 @@ public class KinectManager : MonoBehaviour
         }
 
 
-        lock (bodyLock)
-        {
-            bodyDetected = false;
-        }
-
-
         lock (colorLock)
         {
             latestColorData = null;
-            newColorFrameAvailable = false;
+            displayedColorData = null;
+
+            newColorFrameAvailable =
+                false;
         }
     }
-
 
     private void OnDestroy()
     {

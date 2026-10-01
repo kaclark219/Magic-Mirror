@@ -56,4 +56,12 @@ public class DwellSelectionBox : MonoBehaviour
         selected = false;
         hoverTimer = 0f;
     }
+
+    public void CancelHover()
+    {
+        if (!selected)
+        {
+            hoverTimer = 0f;
+        }
+    }
 }

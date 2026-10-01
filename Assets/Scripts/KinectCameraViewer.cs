@@ -6,8 +6,7 @@ public class KinectCameraViewer : MonoBehaviour
     private Texture2D colorTexture;
     private RawImage targetImage;
 
-    private const int ColorWidth = 1920;
-    private const int ColorHeight = 1080;
+    public Texture2D ColorTexture => colorTexture;
 
     private void Start()
     {
@@ -24,21 +23,19 @@ public class KinectCameraViewer : MonoBehaviour
         }
 
         colorTexture = new Texture2D(
-            ColorWidth,
-            ColorHeight,
+            KinectManager.ColorWidth,
+            KinectManager.ColorHeight,
             TextureFormat.BGRA32,
             false
         );
 
-        colorTexture.filterMode =
-            FilterMode.Bilinear;
+        colorTexture.filterMode = FilterMode.Bilinear;
 
-        targetImage.texture =
-            colorTexture;
-
+        targetImage.texture = colorTexture;
 
         Debug.Log(
-            "KinectCameraViewer initialized."
+            $"KinectCameraViewer initialized: " +
+            $"{KinectManager.ColorWidth}x{KinectManager.ColorHeight}"
         );
     }
 
@@ -49,44 +46,49 @@ public class KinectCameraViewer : MonoBehaviour
             return;
         }
 
-
-        KinectManager manager =
-            KinectManager.Instance;
-
+        KinectManager manager = KinectManager.Instance;
 
         if (manager == null)
         {
             return;
         }
 
-
-        if (!manager.TryGetColorFrame(
-                out byte[] colorData))
+        if (!manager.TryGetColorFrame(out byte[] colorData))
         {
             return;
         }
-
 
         if (colorData == null)
         {
             return;
         }
 
-        colorTexture.LoadRawTextureData(
-            colorData
-        );
+        int expectedSize =
+            KinectManager.ColorWidth *
+            KinectManager.ColorHeight *
+            4;
 
+        if (colorData.Length != expectedSize)
+        {
+            Debug.LogError(
+                $"Unexpected Kinect color frame size. " +
+                $"Expected {expectedSize} bytes, " +
+                $"received {colorData.Length}."
+            );
+
+            return;
+        }
+
+        colorTexture.LoadRawTextureData(colorData);
         colorTexture.Apply(false);
     }
 
     private void OnDestroy()
     {
-
         if (targetImage != null)
         {
             targetImage.texture = null;
         }
-
 
         if (colorTexture != null)
         {

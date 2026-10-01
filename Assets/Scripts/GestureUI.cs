@@ -12,6 +12,16 @@ public class GestureUIManager : MonoBehaviour
         if (handController == null || selectionMade)
             return;
 
+        if (!handController.HasTrackingInput)
+        {
+            foreach (DwellSelectionBox box in clothingBoxes)
+            {
+                box.CancelHover();
+            }
+
+            return;
+        }
+
         Vector2 handPosition =
             handController.HandScreenPosition;
 

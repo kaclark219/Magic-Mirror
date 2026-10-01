@@ -1225,6 +1225,7 @@ GameObject:
   m_Component:
   - component: {fileID: 1916706774}
   - component: {fileID: 1916706775}
+  - component: {fileID: 1916706776}
   m_Layer: 0
   m_Name: HandController
   m_TagString: Untagged
@@ -1260,6 +1261,28 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::HandController
   handCursor: {fileID: 580415768}
+  handTracker: {fileID: 1916706776}
+  useMouseFallback: 0
+  smoothing: 0.35
+--- !u!114 &1916706776
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1916706773}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 854a78029074e37bd82995f8097dede3, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MediaPipeHandTracker
+  cameraViewer: {fileID: 964276776}
+  minDetectionConfidence: 0.5
+  minPresenceConfidence: 0.5
+  minTrackingConfidence: 0.5
+  flipX: 1
+  flipY: 1
+  processEveryNFrames: 2
 --- !u!1660057539 &9223372036854775807
 SceneRoots:
   m_ObjectHideFlags: 0
