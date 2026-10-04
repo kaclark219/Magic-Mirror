@@ -1,8 +1,13 @@
 using UnityEngine;
+using UnityEngine.Events;
 
 public class DwellSelectionBox : MonoBehaviour
 {
     public float dwellTime = 3f;
+
+    [SerializeField] private bool debugLog = false;
+
+    public UnityEvent onDwellComplete;
 
     private float hoverTimer = 0f;
     private bool selected = false;
@@ -24,9 +29,12 @@ public class DwellSelectionBox : MonoBehaviour
         {
             hoverTimer += Time.deltaTime;
 
-            Debug.Log(
-                $"{gameObject.name}: {hoverTimer:F1} / {dwellTime}"
-            );
+            if (debugLog)
+            {
+                Debug.Log(
+                    $"{gameObject.name}: {hoverTimer:F1} / {dwellTime}"
+                );
+            }
 
             if (hoverTimer >= dwellTime && !selected)
             {
@@ -43,12 +51,18 @@ public class DwellSelectionBox : MonoBehaviour
     {
         selected = true;
 
-        Debug.Log($"{gameObject.name} SELECTED!");
+        // Fires before the manager callback so arrow buttons (which have no
+        // manager assigned) still get their CarouselController call.
+        onDwellComplete?.Invoke();
 
         if (manager != null)
         {
             manager.OnClothingSelected(this);
         }
+
+        // Re-arm so the component can fire again. 
+        selected = false;
+        hoverTimer = 0f;
     }
 
     public void ResetSelection()
