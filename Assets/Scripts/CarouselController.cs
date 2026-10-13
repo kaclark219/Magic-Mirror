@@ -9,7 +9,7 @@ public class CarouselController : MonoBehaviour
     [SerializeField] private List<RectTransform> items = new List<RectTransform>();
 
     [Header("Layout")]
-    [SerializeField] private float itemWidth = 300f;
+    [SerializeField] private float itemWidth = 650f;
 
     [Header("Motion")]
     [SerializeField] private float smoothTime = 0.25f;
