@@ -12,9 +12,25 @@ public class KinectManager : MonoBehaviour
         get;
         private set;
     }
+    private const int SensorColorWidth = 1280;
+    private const int SensorColorHeight = 720;
+    private const int ColorBytesPerPixel = 4;
 
-    public const int ColorWidth = 1280;
-    public const int ColorHeight = 720;
+    public const int ColorWidth = SensorColorHeight;
+    public const int ColorHeight = SensorColorWidth;
+
+    public enum PortraitRotation
+    {
+        Clockwise90,
+        CounterClockwise90
+    }
+
+    [Header("Portrait Camera")]
+    [SerializeField]
+    [Tooltip("Rotation applied to the captured image. Stop Play mode before changing this setting.")]
+    private PortraitRotation portraitRotation = PortraitRotation.Clockwise90;
+
+    private bool rotateClockwise;
     public Device Device
     {
         get;
@@ -148,6 +164,7 @@ public class KinectManager : MonoBehaviour
             }
 
             shuttingDown = false;
+            rotateClockwise = portraitRotation == PortraitRotation.Clockwise90;
             cameraThreadRunning = true;
 
 
@@ -288,8 +305,10 @@ public class KinectManager : MonoBehaviour
                     }
 
 
-                    colorMemory.Span.CopyTo(
-                        captureColorData.AsSpan()
+                    RotateColorFrame(
+                        colorMemory.Span,
+                        captureColorData,
+                        rotateClockwise
                     );
 
                     lock (colorLock)
@@ -345,6 +364,31 @@ public class KinectManager : MonoBehaviour
                     capture.Dispose();
                     capture = null;
                 }
+            }
+        }
+    }
+
+    private static void RotateColorFrame(ReadOnlySpan<byte> source, byte[] destination, bool clockwise)
+    {
+        for (int y = 0; y < SensorColorHeight; y++)
+        {
+            int sourceOffset = y * SensorColorWidth * ColorBytesPerPixel;
+            int destinationX = clockwise ? SensorColorHeight - 1 - y : y;
+            int destinationY = clockwise ? 0 : SensorColorWidth - 1;
+            int destinationOffset =
+                (destinationY * ColorWidth + destinationX) * ColorBytesPerPixel;
+            int destinationStep =
+                (clockwise ? ColorWidth : -ColorWidth) * ColorBytesPerPixel;
+
+            for (int x = 0; x < SensorColorWidth; x++)
+            {
+                destination[destinationOffset] = source[sourceOffset];
+                destination[destinationOffset + 1] = source[sourceOffset + 1];
+                destination[destinationOffset + 2] = source[sourceOffset + 2];
+                destination[destinationOffset + 3] = source[sourceOffset + 3];
+
+                sourceOffset += ColorBytesPerPixel;
+                destinationOffset += destinationStep;
             }
         }
     }

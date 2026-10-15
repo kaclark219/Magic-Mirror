@@ -252,7 +252,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fb7408404ef990a8480917de701bacd2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DwellSelectionBox
-  dwellTime: 3
+  dwellTime: 2
   debugLog: 1
   onDwellComplete:
     m_PersistentCalls:
@@ -270,6 +270,55 @@ MonoBehaviour:
           m_BoolArgument: 0
         m_CallState: 1
   manager: {fileID: 0}
+--- !u!1 &254178663
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 254178665}
+  - component: {fileID: 254178664}
+  m_Layer: 0
+  m_Name: MagicMirrorController
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &254178664
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 254178663}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 9599ec7cde987230cb0e78af1a1308e2, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MagicMirrorIntroController
+  handTracker: {fileID: 1916706776}
+  introVideo: {fileID: 308728120}
+  videoPlayer: {fileID: 308728124}
+  carouselRoot: {fileID: 659406439}
+  detectionDuration: 0.5
+--- !u!4 &254178665
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 254178663}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 1280.6, y: 748.6, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &308728120
 GameObject:
   m_ObjectHideFlags: 0
@@ -783,7 +832,7 @@ RectTransform:
   m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
   m_AnchorMin: {x: 0.5, y: 0.5}
   m_AnchorMax: {x: 0.5, y: 0.5}
-  m_AnchoredPosition: {x: -544, y: 28.6}
+  m_AnchoredPosition: {x: -1056, y: 28.6}
   m_SizeDelta: {x: 175, y: 175}
   m_Pivot: {x: 0.5, y: 0.5}
 --- !u!114 &580415769
@@ -957,7 +1006,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: fb7408404ef990a8480917de701bacd2, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::DwellSelectionBox
-  dwellTime: 3
+  dwellTime: 2
   debugLog: 0
   onDwellComplete:
     m_PersistentCalls:
@@ -1131,7 +1180,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.78431374}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1359,7 +1408,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.78431374}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1453,7 +1502,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.78431374}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1547,7 +1596,7 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: UnityEngine.UI::UnityEngine.UI.Image
   m_Material: {fileID: 0}
-  m_Color: {r: 1, g: 1, b: 1, a: 0.78431374}
+  m_Color: {r: 1, g: 1, b: 1, a: 1}
   m_RaycastTarget: 1
   m_RaycastPadding: {x: 0, y: 0, z: 0, w: 0}
   m_Maskable: 1
@@ -1670,6 +1719,7 @@ MonoBehaviour:
   m_Script: {fileID: 11500000, guid: dd74ad04eb4ddbb4988c9ebdb0d0130b, type: 3}
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KinectManager
+  portraitRotation: 1
 --- !u!1 &1808729634
 GameObject:
   m_ObjectHideFlags: 0
@@ -1796,7 +1846,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HandController
   handCursor: {fileID: 580415768}
   handTracker: {fileID: 1916706776}
-  useMouseFallback: 1
+  useMouseFallback: 0
   smoothing: 0.35
 --- !u!114 &1916706776
 MonoBehaviour:
@@ -1888,3 +1938,4 @@ SceneRoots:
   - {fileID: 515858892}
   - {fileID: 1808729637}
   - {fileID: 1916706774}
+  - {fileID: 254178665}
