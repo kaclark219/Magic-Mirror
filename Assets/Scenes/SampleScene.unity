@@ -428,6 +428,64 @@ VideoPlayer:
   m_WaitForFirstFrame: 1
   m_FrameReadyEventEnabled: 0
   m_VideoShaders: []
+--- !u!1 &325757754
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 325757756}
+  - component: {fileID: 325757755}
+  m_Layer: 0
+  m_Name: LandmarkDebugDisplay
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &325757755
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 325757754}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b9e2bc7813411cb419047feb209ef06e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LandmarkDebugDisplay
+  bodyTracker: {fileID: 1882861247}
+  cameraViewer: {fileID: 964276776}
+  showPanel: 1
+  panelRect:
+    serializedVersion: 2
+    x: 10
+    y: 10
+    width: 1200
+    height: 800
+  showLandmarkDots: 1
+  dotSize: 7
+  depthAvailableColor: {r: 0, g: 1, b: 0, a: 1}
+  depthMissingColor: {r: 1, g: 0, b: 0, a: 1}
+  showValues: 0
+--- !u!4 &325757756
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 325757754}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 461.69073, y: 1800.6152, z: -0.00005}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
 --- !u!1 &330585543
 GameObject:
   m_ObjectHideFlags: 0
@@ -1708,8 +1766,8 @@ MonoBehaviour:
   - {fileID: 587071246}
   carousel: {fileID: 1990872001}
   handTracker: {fileID: 1916706776}
-  bodyTracker: {fileID: 0}
-  landmarkDebugDisplay: {fileID: 0}
+  bodyTracker: {fileID: 1882861247}
+  landmarkDebugDisplay: {fileID: 325757755}
 --- !u!114 &1653278292
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1798,6 +1856,55 @@ Transform:
   serializedVersion: 2
   m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
   m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &1882861246
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 1882861248}
+  - component: {fileID: 1882861247}
+  m_Layer: 0
+  m_Name: MediaPipeBodyTracker
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &1882861247
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1882861246}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab5c32a513fc4554285751027955412b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MediaPipeBodyTracker
+  cameraViewer: {fileID: 964276776}
+  minPoseDetectionConfidence: 0.5
+  minPosePresenceConfidence: 0.5
+  minTrackingConfidence: 0.5
+  processEveryNFrames: 4
+--- !u!4 &1882861248
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1882861246}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 461.69073, y: 1800.6152, z: -0.00005}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -1943,3 +2050,5 @@ SceneRoots:
   - {fileID: 1808729637}
   - {fileID: 1916706774}
   - {fileID: 254178665}
+  - {fileID: 1882861248}
+  - {fileID: 325757756}
