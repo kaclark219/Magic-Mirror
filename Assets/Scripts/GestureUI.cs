@@ -12,6 +12,11 @@ public class GestureUIManager : MonoBehaviour
 
     [SerializeField] private CarouselController carousel;
 
+    [Header("Tracking Mode")]
+    [SerializeField] private MediaPipeHandTracker handTracker;
+    [SerializeField] private MediaPipeBodyTracker bodyTracker;
+    [SerializeField] private LandmarkDebugDisplay landmarkDebugDisplay;
+
     private bool selectionMade = false;
 
     void Update()
@@ -74,6 +79,26 @@ public class GestureUIManager : MonoBehaviour
         foreach (DwellSelectionBox button in carouselButtons)
         {
             button.gameObject.SetActive(false);
+        }
+
+        SwitchToBodyTracking();
+    }
+
+    private void SwitchToBodyTracking()
+    {
+        if (handTracker != null)
+        {
+            handTracker.enabled = false;
+        }
+
+        if (bodyTracker != null)
+        {
+            bodyTracker.enabled = true;
+        }
+
+        if (landmarkDebugDisplay != null)
+        {
+            landmarkDebugDisplay.enabled = true;
         }
     }
 }

@@ -268,6 +268,12 @@ public class MediaPipeHandTracker : MonoBehaviour
         }
     }
 
+    private void OnDisable()
+    {
+        HandDetected = false;
+        IndexTipNormalized = Vector2.zero;
+    }
+
     private void OnDestroy()
     {
         initialized = false;

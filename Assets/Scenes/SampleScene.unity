@@ -1651,6 +1651,8 @@ GameObject:
   - component: {fileID: 1653278290}
   - component: {fileID: 1653278291}
   - component: {fileID: 1653278292}
+  - component: {fileID: 1653278293}
+  - component: {fileID: 1653278294}
   m_Layer: 0
   m_Name: KinectManager
   m_TagString: Untagged
@@ -1707,6 +1709,9 @@ MonoBehaviour:
   - {fileID: 77828620}
   - {fileID: 587071246}
   carousel: {fileID: 1990872001}
+  handTracker: {fileID: 1916706776}
+  bodyTracker: {fileID: 1653278293}
+  landmarkDebugDisplay: {fileID: 1653278294}
 --- !u!114 &1653278292
 MonoBehaviour:
   m_ObjectHideFlags: 0
@@ -1720,6 +1725,50 @@ MonoBehaviour:
   m_Name: 
   m_EditorClassIdentifier: Assembly-CSharp::KinectManager
   portraitRotation: 1
+  enableDepth: 1
+--- !u!114 &1653278293
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1653278288}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: ab5c32a513fc4554285751027955412b, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::MediaPipeBodyTracker
+  cameraViewer: {fileID: 964276776}
+  minPoseDetectionConfidence: 0.5
+  minPosePresenceConfidence: 0.5
+  minTrackingConfidence: 0.5
+  processEveryNFrames: 2
+--- !u!114 &1653278294
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 1653278288}
+  m_Enabled: 0
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: b9e2bc7813411cb419047feb209ef06e, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::LandmarkDebugDisplay
+  bodyTracker: {fileID: 1653278293}
+  cameraViewer: {fileID: 964276776}
+  showPanel: 1
+  panelRect:
+    serializedVersion: 2
+    x: 10
+    y: 10
+    width: 530
+    height: 420
+  showLandmarkDots: 1
+  dotSize: 7
+  depthAvailableColor: {r: 0, g: 1, b: 0, a: 1}
+  depthMissingColor: {r: 1, g: 0, b: 0, a: 1}
+  showValues: 0
 --- !u!1 &1808729634
 GameObject:
   m_ObjectHideFlags: 0
