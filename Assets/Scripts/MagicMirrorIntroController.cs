@@ -30,6 +30,14 @@ public class MagicMirrorIntroController : MonoBehaviour
             return;
         }
 
+        // The scene stores an absolute URL from the machine the video was
+        // authored on, so resolve the clip from StreamingAssets at runtime.
+        videoPlayer.url = System.IO.Path.Combine(
+            Application.streamingAssetsPath,
+            "Videos",
+            "intro-video-final.webm"
+        );
+
         ShowIntro();
     }
 

@@ -31,6 +31,18 @@ public class MediaPipeBodyTracker : MonoBehaviour
     [Min(1)]
     private int processEveryNFrames = 2;
 
+    [Header("Depth Fallback")]
+    [Tooltip(
+        "Use a fixed distance instead of sampled Kinect depth. Useful when the " +
+        "depth camera is blocked by glass, a mirror, or a near surface."
+    )]
+    [SerializeField]
+    private bool useFixedDepth = false;
+
+    [SerializeField]
+    [Min(0.1f)]
+    private float fixedDepthMeters = 2f;
+
     public bool BodyDetected { get; private set; }
 
     public IReadOnlyList<Vector3> Landmarks { get; private set; }
@@ -38,11 +50,15 @@ public class MediaPipeBodyTracker : MonoBehaviour
     public IReadOnlyList<Vector3> WorldLandmarks { get; private set; }
 
     // Landmarks back-projected into Kinect color camera space, in meters:
-    // X right, Y down, Z forward. Vector3.zero when no metric depth
+    // X right, Y down, Z forward. Vector3.zero when there is no metric depth.
     public IReadOnlyList<Vector3> CameraSpaceLandmarks { get; private set; }
 
-    // Depth in meters used per landmark, or float.NaN
+    // Measured depth in meters per landmark, or float.NaN when the sensor
+    // returned none for that landmark.
     public IReadOnlyList<float> LandmarkDepthsMeters { get; private set; }
+
+    // Depth used for landmarks that returned no depth of their own.
+    private float bodyDepthMeters;
 
     // True when the last detection pass fused depth.
     public bool DepthFusionEnabled { get; private set; }
@@ -68,6 +84,11 @@ public class MediaPipeBodyTracker : MonoBehaviour
         LandmarkDepthsMeters = landmarkDepthsMeters;
 
         ResetMetricLandmarks();
+
+        if (useFixedDepth)
+        {
+            Debug.Log($"MediaPipeBodyTracker: using fixed depth {fixedDepthMeters:F2} m.");
+        }
 
         InitializeMediaPipe();
     }
@@ -211,61 +232,67 @@ public class MediaPipeBodyTracker : MonoBehaviour
             bool depthFusionActive = colorFx > 0f && colorFy > 0f;
             DepthFusionEnabled = depthFusionActive;
 
-            if (pose.landmarks != null && pose.landmarks.Count >= 33)
-            {
-                for (int i = 0; i < 33; i++)
-                {
-                    var lm = pose.landmarks[i];
-                    normalizedLandmarks[i] = new Vector3(lm.x, lm.y, lm.z);
-
-                    if (!depthFusionActive)
-                    {
-                        cameraSpaceLandmarks[i] = Vector3.zero;
-                        landmarkDepthsMeters[i] = float.NaN;
-                        continue;
-                    }
-
-                    int pixelX = Mathf.Clamp(
-                        Mathf.RoundToInt(lm.x * KinectManager.ColorWidth),
-                        0,
-                        KinectManager.ColorWidth - 1
-                    );
-
-                    int pixelY = Mathf.Clamp(
-                        Mathf.RoundToInt(lm.y * KinectManager.ColorHeight),
-                        0,
-                        KinectManager.ColorHeight - 1
-                    );
-
-                    float zMeters;
-                    kinectManager.TryGetDepthAtColorPixel(pixelX, pixelY, out zMeters);
-
-                    // DEPTH SMOOTHING
-                    zMeters = SmoothDepth(i, zMeters);
-                    // END DEPTH SMOOTHING
-
-                    if (zMeters > 0f)
-                    {
-                        cameraSpaceLandmarks[i] = new Vector3(
-                            (pixelX - colorCx) / colorFx * zMeters,
-                            (pixelY - colorCy) / colorFy * zMeters,
-                            zMeters
-                        );
-
-                        landmarkDepthsMeters[i] = zMeters;
-                    }
-                    else
-                    {
-                        cameraSpaceLandmarks[i] = Vector3.zero;
-                        landmarkDepthsMeters[i] = float.NaN;
-                    }
-                }
-            }
-            else
+            if (pose.landmarks == null || pose.landmarks.Count < 33)
             {
                 BodyDetected = false;
                 ResetMetricLandmarks();
                 return;
+            }
+
+            for (int i = 0; i < 33; i++)
+            {
+                var lm = pose.landmarks[i];
+                normalizedLandmarks[i] = new Vector3(lm.x, lm.y, lm.z);
+                landmarkDepthsMeters[i] = float.NaN;
+            }
+
+            if (!depthFusionActive)
+            {
+                BodyDetected = true;
+                ResetMetricLandmarks();
+                return;
+            }
+
+            for (int i = 0; i < 33; i++)
+            {
+                int pixelX = ColorPixelX(pose.landmarks[i].x);
+                int pixelY = ColorPixelY(pose.landmarks[i].y);
+
+                float zMeters;
+                kinectManager.TryGetDepthAtColorPixel(pixelX, pixelY, out zMeters);
+
+                // DEPTH SMOOTHING
+                zMeters = useFixedDepth ? fixedDepthMeters : SmoothDepth(i, zMeters);
+                // END DEPTH SMOOTHING
+
+                if (zMeters > 0f)
+                {
+                    landmarkDepthsMeters[i] = zMeters;
+                }
+            }
+
+            bodyDepthMeters = EstimateBodyDepth();
+
+            // A landmark without its own depth sample (hands, feet, anything the
+            // sensor cannot see) still gets a position at the body depth, so one
+            // missing sample cannot invalidate the whole pose.
+            for (int i = 0; i < 33; i++)
+            {
+                int pixelX = ColorPixelX(pose.landmarks[i].x);
+                int pixelY = ColorPixelY(pose.landmarks[i].y);
+
+                float zMeters = landmarkDepthsMeters[i];
+
+                if (float.IsNaN(zMeters))
+                {
+                    zMeters = bodyDepthMeters;
+                }
+
+                cameraSpaceLandmarks[i] = new Vector3(
+                    (pixelX - colorCx) / colorFx * zMeters,
+                    (pixelY - colorCy) / colorFy * zMeters,
+                    zMeters
+                );
             }
 
             if (result.poseWorldLandmarks != null && result.poseWorldLandmarks.Count > 0)
@@ -293,11 +320,71 @@ public class MediaPipeBodyTracker : MonoBehaviour
 
     private void ResetMetricLandmarks()
     {
+        bodyDepthMeters = 0f;
+
         for (int i = 0; i < 33; i++)
         {
             cameraSpaceLandmarks[i] = Vector3.zero;
             landmarkDepthsMeters[i] = float.NaN;
         }
+    }
+
+    private static int ColorPixelX(float normalizedX)
+    {
+        return Mathf.Clamp(
+            Mathf.RoundToInt(normalizedX * KinectManager.ColorWidth),
+            0,
+            KinectManager.ColorWidth - 1
+        );
+    }
+
+    private static int ColorPixelY(float normalizedY)
+    {
+        return Mathf.Clamp(
+            Mathf.RoundToInt(normalizedY * KinectManager.ColorHeight),
+            0,
+            KinectManager.ColorHeight - 1
+        );
+    }
+
+    // The torso joints are the most reliable depth samples, so they decide the
+    // depth that landmarks without a sample of their own inherit.
+    private float EstimateBodyDepth()
+    {
+        float sum = 0f;
+        int count = 0;
+
+        for (int i = 0; i < 33; i++)
+        {
+            if (i != 11 && i != 12 && i != 23 && i != 24)
+            {
+                continue;
+            }
+
+            if (float.IsNaN(landmarkDepthsMeters[i]))
+            {
+                continue;
+            }
+
+            sum += landmarkDepthsMeters[i];
+            count++;
+        }
+
+        if (count == 0)
+        {
+            for (int i = 0; i < 33; i++)
+            {
+                if (float.IsNaN(landmarkDepthsMeters[i]))
+                {
+                    continue;
+                }
+
+                sum += landmarkDepthsMeters[i];
+                count++;
+            }
+        }
+
+        return count > 0 ? sum / count : fixedDepthMeters;
     }
 
     // DEPTH SMOOTHING

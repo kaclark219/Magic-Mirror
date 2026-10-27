@@ -9,6 +9,8 @@ using UnityEngine;
 // controller or manual rest-pose setup is required.
 public class HumanoidPoseDriver : MonoBehaviour
 {
+    public bool HasValidPose { get; private set; }
+
     private const int LandmarkCount = 33;
     private const float MinimumDirectionSqrMagnitude = 0.0001f;
 
@@ -46,6 +48,15 @@ public class HumanoidPoseDriver : MonoBehaviour
     [SerializeField]
     [Min(0f)]
     private float positionScale = 1f;
+
+    [Tooltip(
+        "Closest the avatar is allowed to get to the camera. Scaling the tracked " +
+        "position along its view ray keeps the avatar on the same part of the " +
+        "screen without letting it clip the near plane or fill the frame."
+    )]
+    [SerializeField]
+    [Min(0.1f)]
+    private float minimumDistance = 1.2f;
 
     [Header("Motion")]
     [Tooltip(
@@ -264,6 +275,8 @@ public class HumanoidPoseDriver : MonoBehaviour
 
     private void Update()
     {
+        HasValidPose = false;
+
         if (!ReadPose())
         {
             return;
@@ -273,6 +286,8 @@ public class HumanoidPoseDriver : MonoBehaviour
         {
             return;
         }
+
+        HasValidPose = true;
 
         float blend = smoothing > 0f
             ? 1f - Mathf.Exp(-smoothing * Time.deltaTime)
@@ -328,30 +343,19 @@ public class HumanoidPoseDriver : MonoBehaviour
         }
 
         IReadOnlyList<Vector3> cameraSpaceLandmarks = bodyTracker.CameraSpaceLandmarks;
-        IReadOnlyList<float> landmarkDepths = bodyTracker.LandmarkDepthsMeters;
 
-        if (cameraSpaceLandmarks == null || landmarkDepths == null ||
-            cameraSpaceLandmarks.Count < LandmarkCount ||
-            landmarkDepths.Count < LandmarkCount)
+        if (cameraSpaceLandmarks == null || cameraSpaceLandmarks.Count < LandmarkCount)
         {
             return false;
         }
 
         for (int i = 0; i < LandmarkCount; i++)
         {
-            float depth = landmarkDepths[i];
-
-            if (float.IsNaN(depth) || depth <= 0f)
-            {
-                poseValid[i] = false;
-                continue;
-            }
-
             Vector3 landmark = cameraSpaceLandmarks[i];
 
             // Kinect camera space is X right, Y down, Z forward; Unity is Y up.
             pose[i] = new Vector3(landmark.x, -landmark.y, landmark.z);
-            poseValid[i] = true;
+            poseValid[i] = landmark.z > 0f;
         }
 
         return true;
@@ -429,6 +433,12 @@ public class HumanoidPoseDriver : MonoBehaviour
     private void FollowHips(float blend)
     {
         Vector3 trackedHips = (pose[LeftHipLandmark] + pose[RightHipLandmark]) * 0.5f;
+
+        if (trackedHips.z > 0f && trackedHips.z < minimumDistance)
+        {
+            trackedHips *= minimumDistance / trackedHips.z;
+        }
+
         Vector3 targetPosition =
             trackingCamera.TransformPoint(trackedHips * positionScale);
         Vector3 error = targetPosition - hips.position;
