@@ -261,7 +261,8 @@ public class AvatarOverlay : MonoBehaviour
         Destroy(probe);
 
         Bounds bounds = GetAvatarBounds(avatar);
-        Transform hips = avatar.GetBoneTransform(HumanBodyBones.Hips);
+        Transform leftShoulder = avatar.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+        Transform rightShoulder = avatar.GetBoneTransform(HumanBodyBones.RightUpperArm);
 
         kinect.TryGetDepthAtColorPixel(
             KinectManager.ColorWidth / 2,
@@ -276,7 +277,9 @@ public class AvatarOverlay : MonoBehaviour
               $"shoulderDepths=({depths[11]:F2},{depths[12]:F2})"
             : "depths=<none>";
 
-        string hipsInfo = hips != null ? $"hipsPos={hips.position}" : "hips=<none>";
+        string shouldersInfo = leftShoulder != null && rightShoulder != null
+            ? $"shouldersPos={(leftShoulder.position + rightShoulder.position) * 0.5f}"
+            : "shoulders=<none>";
 
         Debug.Log(
             $"AvatarOverlay: fx={kinect.ColorFx:F1} fy={kinect.ColorFy:F1} " +
@@ -289,7 +292,7 @@ public class AvatarOverlay : MonoBehaviour
             $"avatarPos={avatar.transform.position} " +
             $"avatarScale={avatar.transform.localScale} " +
             $"boundsSize={bounds.size} boundsCenter={bounds.center} " +
-            $"{hipsInfo} {depthInfo} overlay={overlayImage.enabled}"
+            $"{shouldersInfo} {depthInfo} overlay={overlayImage.enabled}"
         );
     }
 

@@ -8,13 +8,14 @@ using UnityEngine;
 // and the tracked pose is applied as a delta from it, so no animation
 // controller or manual rest-pose setup is required.
 //
-// The avatar is also scaled to the person in front of the mirror. Its own rest
-// shoulder-to-ankle span is measured at Start, then the avatar is scaled so the
-// same span on the avatar matches the tracked one. Both spans are in meters
-// between the same joints, so no body proportions or preset avatar height are
-// involved. Because the overlay camera projects with the Kinect color
-// intrinsics, a correctly sized avatar standing at the tracked hip position
-// covers the person whether they are close to the mirror or far away.
+// The avatar is fitted to the person by their shoulders, because the chest and
+// shoulders are what an overlay has to sit on. Its own rest shoulder width is
+// measured at Start, then the avatar is scaled until that width matches the
+// tracked shoulder width and moved until its shoulder joints sit on the tracked
+// shoulders. Both widths are in meters between the same joints, and the overlay
+// camera projects with the Kinect color intrinsics, so the same shoulder width
+// lands on the same pixels whether the person is close or far away. Everything
+// below the chest then follows from the avatar's own proportions.
 public class HumanoidPoseDriver : MonoBehaviour
 {
     public bool HasValidPose { get; private set; }
@@ -25,15 +26,10 @@ public class HumanoidPoseDriver : MonoBehaviour
     private const int LandmarkCount = 33;
     private const float MinimumDirectionSqrMagnitude = 0.0001f;
 
-    // Bounds on the height the fitted avatar is allowed to render at, so a
-    // depth sample that landed on the background cannot produce an absurd one.
-    private const float MinimumHeight = 1.2f;
-    private const float MaximumHeight = 2.2f;
-
-    // Landmark depths further apart than this cannot belong to one standing body.
+    // Landmark depths further apart than this cannot belong to one torso.
     private const float MaximumDepthSpread = 0.5f;
 
-    private const float FitSmoothingSeconds = 1f;
+    private const float FitSmoothingSeconds = 0.2f;
     private const float FitResetSeconds = 2f;
 
     private const int LeftShoulderLandmark = 11;
@@ -59,9 +55,9 @@ public class HumanoidPoseDriver : MonoBehaviour
     private Animator targetAnimator;
 
     [Header("Placement")]
-    [Tooltip("Move the avatar so its hips sit at the tracked hip position.")]
+    [Tooltip("Move the avatar so its shoulders sit on the tracked shoulders.")]
     [SerializeField]
-    private bool followHipsPosition = true;
+    private bool followChestPosition = true;
 
     [Tooltip(
         "Scales tracked movement before it is applied to the scene. " +
@@ -72,9 +68,9 @@ public class HumanoidPoseDriver : MonoBehaviour
     private float positionScale = 1f;
 
     [Tooltip(
-        "Closest the avatar is allowed to get to the camera. Scaling the tracked " +
-        "position along its view ray keeps the avatar on the same part of the " +
-        "screen while keeping its mesh in front of the near plane."
+        "Closest the avatar's chest is allowed to get to the camera. Scaling the " +
+        "tracked position along its view ray keeps the avatar on the same part " +
+        "of the screen while keeping its mesh in front of the near plane."
     )]
     [SerializeField]
     [Min(0.1f)]
@@ -103,6 +99,8 @@ public class HumanoidPoseDriver : MonoBehaviour
     private Transform hips;
     private Transform spine;
     private Transform chest;
+    private Transform leftShoulder;
+    private Transform rightShoulder;
 
     private Quaternion hipsRestRotation;
     private Quaternion spineRestRotation;
@@ -120,9 +118,7 @@ public class HumanoidPoseDriver : MonoBehaviour
     private bool hasPlacedRoot;
 
     private Vector3 authoredScale;
-    private float authoredHeight;
-    private float shoulderToAnkleSpan;
-    private float shoulderToHipSpan;
+    private float restShoulderWidth;
 
     private float appliedScale = 1f;
     private float lastBodyTime = float.NegativeInfinity;
@@ -175,7 +171,7 @@ public class HumanoidPoseDriver : MonoBehaviour
             return;
         }
 
-        if (followHipsPosition)
+        if (followChestPosition)
         {
             Camera mainCamera = Camera.main;
 
@@ -218,6 +214,9 @@ public class HumanoidPoseDriver : MonoBehaviour
         hipsRestRotation = hips.rotation;
         spineRestRotation = spine.rotation;
         chestRestRotation = chest.rotation;
+
+        leftShoulder = leftArm;
+        rightShoulder = rightArm;
 
         bool hasPelvisFrame = TryBuildBodyRotation(
             rightLeg.position - leftLeg.position,
@@ -367,9 +366,9 @@ public class HumanoidPoseDriver : MonoBehaviour
             );
         }
 
-        if (followHipsPosition && trackingCamera != null)
+        if (followChestPosition && trackingCamera != null)
         {
-            FollowHips(blend);
+            FollowChest(blend);
         }
     }
 
@@ -468,18 +467,20 @@ public class HumanoidPoseDriver : MonoBehaviour
         );
     }
 
-    private void FollowHips(float blend)
+    private void FollowChest(float blend)
     {
-        Vector3 trackedHips = (pose[LeftHipLandmark] + pose[RightHipLandmark]) * 0.5f;
+        Vector3 trackedChest =
+            (pose[LeftShoulderLandmark] + pose[RightShoulderLandmark]) * 0.5f;
 
-        if (trackedHips.z > 0f && trackedHips.z < minimumDistance)
+        if (trackedChest.z > 0f && trackedChest.z < minimumDistance)
         {
-            trackedHips *= minimumDistance / trackedHips.z;
+            trackedChest *= minimumDistance / trackedChest.z;
         }
 
         Vector3 targetPosition =
-            trackingCamera.TransformPoint(trackedHips * positionScale);
-        Vector3 error = targetPosition - hips.position;
+            trackingCamera.TransformPoint(trackedChest * positionScale);
+        Vector3 error =
+            targetPosition - (leftShoulder.position + rightShoulder.position) * 0.5f;
 
         if (!hasPlacedRoot)
         {
@@ -491,27 +492,21 @@ public class HumanoidPoseDriver : MonoBehaviour
         targetAnimator.transform.position += error * blend;
     }
 
-    // Records the avatar's own rest dimensions, which the tracked body is
-    // matched against. Measuring the avatar instead of assuming a height keeps
-    // the fit correct for any rig and any import scale.
+    // Records the avatar's own shoulder width, which the tracked shoulders are
+    // matched against. Measuring the avatar instead of assuming a size keeps the
+    // fit correct for any rig and any import scale.
     private bool CacheFitReferences()
     {
-        Transform leftArm = targetAnimator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
-        Transform rightArm = targetAnimator.GetBoneTransform(HumanBodyBones.RightUpperArm);
-        Transform leftLeg = targetAnimator.GetBoneTransform(HumanBodyBones.LeftUpperLeg);
-        Transform rightLeg = targetAnimator.GetBoneTransform(HumanBodyBones.RightUpperLeg);
-        Transform leftFoot = targetAnimator.GetBoneTransform(HumanBodyBones.LeftFoot);
-        Transform rightFoot = targetAnimator.GetBoneTransform(HumanBodyBones.RightFoot);
-
         authoredScale = targetAnimator.transform.localScale;
-        authoredHeight = GetAvatarHeight();
-        shoulderToHipSpan = GetSpan(leftArm, rightArm, leftLeg, rightLeg);
-        shoulderToAnkleSpan = GetSpan(leftArm, rightArm, leftFoot, rightFoot);
+        restShoulderWidth = Vector3.Distance(
+            leftShoulder.position,
+            rightShoulder.position
+        );
 
-        if (authoredHeight <= 0f || shoulderToHipSpan <= 0f || shoulderToAnkleSpan <= 0f)
+        if (restShoulderWidth <= 0f)
         {
             Debug.LogError(
-                "HumanoidPoseDriver: the avatar has no measurable height or body span.",
+                "HumanoidPoseDriver: the avatar has no measurable shoulder width.",
                 this
             );
 
@@ -521,45 +516,10 @@ public class HumanoidPoseDriver : MonoBehaviour
         return true;
     }
 
-    private static float GetSpan(
-        Transform leftTop,
-        Transform rightTop,
-        Transform leftBottom,
-        Transform rightBottom)
-    {
-        if (leftBottom == null || rightBottom == null)
-        {
-            return 0f;
-        }
-
-        Vector3 top = (leftTop.position + rightTop.position) * 0.5f;
-        Vector3 bottom = (leftBottom.position + rightBottom.position) * 0.5f;
-
-        return Vector3.Distance(top, bottom);
-    }
-
-    private float GetAvatarHeight()
-    {
-        Renderer[] renderers = targetAnimator.GetComponentsInChildren<Renderer>();
-
-        if (renderers.Length == 0)
-        {
-            return 0f;
-        }
-
-        Bounds bounds = renderers[0].bounds;
-
-        for (int i = 1; i < renderers.Length; i++)
-        {
-            bounds.Encapsulate(renderers[i].bounds);
-        }
-
-        return bounds.size.y;
-    }
-
     // Fits the avatar to the measured body every frame. The first body after a
-    // gap is fitted immediately, and later measurements are smoothed so tracker
-    // jitter does not visibly resize the avatar.
+    // gap is fitted immediately, and later measurements are only lightly
+    // smoothed, because a slow fit would lag behind someone walking towards or
+    // away from the mirror.
     private void UpdateFit()
     {
         if (bodyTracker.BodyDetected)
@@ -572,15 +532,9 @@ public class HumanoidPoseDriver : MonoBehaviour
             IsFitted = false;
         }
 
-        if (TryMeasureBody(out float span, out bool usesAnkles))
+        if (TryMeasureShoulderWidth(out float shoulderWidth))
         {
-            float referenceSpan = usesAnkles ? shoulderToAnkleSpan : shoulderToHipSpan;
-
-            float targetScale = Mathf.Clamp(
-                span / referenceSpan,
-                MinimumHeight / authoredHeight,
-                MaximumHeight / authoredHeight
-            );
+            float targetScale = shoulderWidth / restShoulderWidth;
 
             if (IsFitted)
             {
@@ -593,12 +547,9 @@ public class HumanoidPoseDriver : MonoBehaviour
                 appliedScale = targetScale;
                 IsFitted = true;
 
-                float fittedHeight = authoredHeight * appliedScale;
-
                 Debug.Log(
-                    $"HumanoidPoseDriver: sized the avatar to {fittedHeight:F2} m from " +
-                    $"a {(usesAnkles ? "shoulder-to-ankle" : "shoulder-to-hip")} span " +
-                    $"of {span:F2} m.",
+                    $"HumanoidPoseDriver: sized the avatar to a " +
+                    $"{shoulderWidth:F2} m shoulder width.",
                     this
                 );
             }
@@ -607,71 +558,35 @@ public class HumanoidPoseDriver : MonoBehaviour
         targetAnimator.transform.localScale = authoredScale * appliedScale;
     }
 
-    // Measures the tracked body against the same joints the avatar was measured
-    // with. The ankles are preferred because that span covers most of the body;
-    // when they are out of frame the shoulder-to-hip span stands in for it.
-    private bool TryMeasureBody(out float span, out bool usesAnkles)
+    private bool TryMeasureShoulderWidth(out float width)
     {
-        span = 0f;
-        usesAnkles = false;
+        width = 0f;
 
         IReadOnlyList<Vector3> cameraSpace = bodyTracker.CameraSpaceLandmarks;
         IReadOnlyList<Vector3> normalized = bodyTracker.Landmarks;
 
         if (cameraSpace == null || normalized == null ||
-            cameraSpace.Count < LandmarkCount || normalized.Count < LandmarkCount)
+            cameraSpace.Count < LandmarkCount || normalized.Count < LandmarkCount ||
+            !IsInFrame(normalized[LeftShoulderLandmark]) ||
+            !IsInFrame(normalized[RightShoulderLandmark]))
         {
             return false;
         }
 
-        if (!IsInFrame(normalized[LeftShoulderLandmark]) ||
-            !IsInFrame(normalized[RightShoulderLandmark]) ||
-            !IsInFrame(normalized[LeftHipLandmark]) ||
-            !IsInFrame(normalized[RightHipLandmark]))
+        Vector3 left = cameraSpace[LeftShoulderLandmark];
+        Vector3 right = cameraSpace[RightShoulderLandmark];
+
+        // A shoulder depth that landed on the background would fake a much
+        // longer or shorter width.
+        if (left.z <= 0f || right.z <= 0f ||
+            Mathf.Abs(left.z - right.z) > MaximumDepthSpread)
         {
             return false;
         }
 
-        if (!TryGetJointMid(cameraSpace, LeftShoulderLandmark, RightShoulderLandmark,
-                out Vector3 shoulderMid) ||
-            !TryGetJointMid(cameraSpace, LeftHipLandmark, RightHipLandmark,
-                out Vector3 hipMid))
-        {
-            return false;
-        }
-
-        Vector3 lowerMid = hipMid;
-
-        usesAnkles =
-            IsInFrame(normalized[LeftAnkleLandmark]) &&
-            IsInFrame(normalized[RightAnkleLandmark]) &&
-            TryGetJointMid(cameraSpace, LeftAnkleLandmark, RightAnkleLandmark,
-                out lowerMid);
-
-        // A single landmark depth that landed on the background would fake a
-        // much longer or shorter body.
-        float minDepth = Mathf.Min(shoulderMid.z, Mathf.Min(hipMid.z, lowerMid.z));
-        float maxDepth = Mathf.Max(shoulderMid.z, Mathf.Max(hipMid.z, lowerMid.z));
-
-        if (maxDepth - minDepth > MaximumDepthSpread)
-        {
-            return false;
-        }
-
-        span = Vector3.Distance(shoulderMid, lowerMid);
+        width = Vector3.Distance(left, right);
 
         return true;
-    }
-
-    private static bool TryGetJointMid(
-        IReadOnlyList<Vector3> landmarks,
-        int left,
-        int right,
-        out Vector3 mid)
-    {
-        mid = (landmarks[left] + landmarks[right]) * 0.5f;
-
-        return landmarks[left].z > 0f && landmarks[right].z > 0f;
     }
 
     private static bool IsInFrame(Vector3 normalized)

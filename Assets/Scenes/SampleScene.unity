@@ -770,7 +770,7 @@ MonoBehaviour:
   m_EditorClassIdentifier: Assembly-CSharp::HumanoidPoseDriver
   bodyTracker: {fileID: 1882861247}
   targetAnimator: {fileID: 490841113}
-  followHipsPosition: 1
+  followChestPosition: 1
   positionScale: 1
   minimumDistance: 0.6
   smoothing: 12
