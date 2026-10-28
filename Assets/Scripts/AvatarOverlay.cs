@@ -17,9 +17,6 @@ public class AvatarOverlay : MonoBehaviour
     private HumanoidPoseDriver poseDriver;
 
     [SerializeField]
-    private float avatarHeight = 1.8f;
-
-    [SerializeField]
     private Animator avatar;
 
     private RawImage overlayImage;
@@ -34,7 +31,6 @@ public class AvatarOverlay : MonoBehaviour
     private const float HideDelay = 0.25f;
 
     private bool cameraConfigured;
-    private bool avatarNormalized;
     private float lastTrackedTime = float.NegativeInfinity;
     private int trackedFrames;
 
@@ -58,11 +54,6 @@ public class AvatarOverlay : MonoBehaviour
         overlayImage = GetComponent<RawImage>();
         displayCamera = Camera.main;
 
-        if (avatarHeight <= 0f)
-        {
-            avatarHeight = 1.8f;
-        }
-
         if (bodyTracker == null || poseDriver == null || avatar == null ||
             displayCamera == null || colorFeed == null)
         {
@@ -75,8 +66,6 @@ public class AvatarOverlay : MonoBehaviour
             enabled = false;
             return;
         }
-
-        NormalizeAvatarScale();
 
         avatarCamera = CreateAvatarCamera(displayCamera);
 
@@ -132,15 +121,11 @@ public class AvatarOverlay : MonoBehaviour
             return;
         }
 
-        if (!avatarNormalized)
-        {
-            NormalizeAvatarScale();
-        }
-
         KinectManager kinect = KinectManager.Instance;
 
         bool tracked = bodyTracker.enabled && bodyTracker.BodyDetected &&
             poseDriver.enabled && poseDriver.HasValidPose &&
+            poseDriver.IsFitted &&
             kinect != null && kinect.ColorFx > 0f && kinect.ColorFy > 0f;
 
         if (tracked)
@@ -176,24 +161,6 @@ public class AvatarOverlay : MonoBehaviour
         {
             LogDiagnostics(projection, kinect);
         }
-    }
-
-    private void NormalizeAvatarScale()
-    {
-        Bounds bounds = GetAvatarBounds(avatar);
-
-        if (bounds.size.y <= 0f)
-        {
-            return;
-        }
-
-        avatarNormalized = true;
-        avatar.transform.localScale *= avatarHeight / bounds.size.y;
-
-        Debug.Log(
-            $"AvatarOverlay: normalized avatar from {bounds.size.y:F2}m to " +
-            $"{avatarHeight:F2}m, scale {avatar.transform.localScale.x:F3}."
-        );
     }
 
     private void CreateBackgroundQuad()
@@ -321,7 +288,6 @@ public class AvatarOverlay : MonoBehaviour
             $"cameraPos={displayCamera.transform.position} " +
             $"avatarPos={avatar.transform.position} " +
             $"avatarScale={avatar.transform.localScale} " +
-            $"heightTarget={avatarHeight:F2} " +
             $"boundsSize={bounds.size} boundsCenter={bounds.center} " +
             $"{hipsInfo} {depthInfo} overlay={overlayImage.enabled}"
         );

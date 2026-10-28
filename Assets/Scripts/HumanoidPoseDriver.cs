@@ -7,12 +7,34 @@ using UnityEngine;
 // joint direction in world space. The avatar's rest pose is captured at Start
 // and the tracked pose is applied as a delta from it, so no animation
 // controller or manual rest-pose setup is required.
+//
+// The avatar is also scaled to the person in front of the mirror. Its own rest
+// shoulder-to-ankle span is measured at Start, then the avatar is scaled so the
+// same span on the avatar matches the tracked one. Both spans are in meters
+// between the same joints, so no body proportions or preset avatar height are
+// involved. Because the overlay camera projects with the Kinect color
+// intrinsics, a correctly sized avatar standing at the tracked hip position
+// covers the person whether they are close to the mirror or far away.
 public class HumanoidPoseDriver : MonoBehaviour
 {
     public bool HasValidPose { get; private set; }
 
+    // True once the avatar has been scaled to a measured body.
+    public bool IsFitted { get; private set; }
+
     private const int LandmarkCount = 33;
     private const float MinimumDirectionSqrMagnitude = 0.0001f;
+
+    // Bounds on the height the fitted avatar is allowed to render at, so a
+    // depth sample that landed on the background cannot produce an absurd one.
+    private const float MinimumHeight = 1.2f;
+    private const float MaximumHeight = 2.2f;
+
+    // Landmark depths further apart than this cannot belong to one standing body.
+    private const float MaximumDepthSpread = 0.5f;
+
+    private const float FitSmoothingSeconds = 1f;
+    private const float FitResetSeconds = 2f;
 
     private const int LeftShoulderLandmark = 11;
     private const int RightShoulderLandmark = 12;
@@ -52,11 +74,11 @@ public class HumanoidPoseDriver : MonoBehaviour
     [Tooltip(
         "Closest the avatar is allowed to get to the camera. Scaling the tracked " +
         "position along its view ray keeps the avatar on the same part of the " +
-        "screen without letting it clip the near plane or fill the frame."
+        "screen while keeping its mesh in front of the near plane."
     )]
     [SerializeField]
     [Min(0.1f)]
-    private float minimumDistance = 1.2f;
+    private float minimumDistance = 0.6f;
 
     [Header("Motion")]
     [Tooltip(
@@ -96,6 +118,14 @@ public class HumanoidPoseDriver : MonoBehaviour
     private readonly bool[] poseValid = new bool[LandmarkCount];
 
     private bool hasPlacedRoot;
+
+    private Vector3 authoredScale;
+    private float authoredHeight;
+    private float shoulderToAnkleSpan;
+    private float shoulderToHipSpan;
+
+    private float appliedScale = 1f;
+    private float lastBodyTime = float.NegativeInfinity;
 
     private void Start()
     {
@@ -138,6 +168,12 @@ public class HumanoidPoseDriver : MonoBehaviour
         }
 
         CacheLimbs();
+
+        if (!CacheFitReferences())
+        {
+            enabled = false;
+            return;
+        }
 
         if (followHipsPosition)
         {
@@ -276,6 +312,8 @@ public class HumanoidPoseDriver : MonoBehaviour
     private void Update()
     {
         HasValidPose = false;
+
+        UpdateFit();
 
         if (!ReadPose())
         {
@@ -451,5 +489,194 @@ public class HumanoidPoseDriver : MonoBehaviour
         }
 
         targetAnimator.transform.position += error * blend;
+    }
+
+    // Records the avatar's own rest dimensions, which the tracked body is
+    // matched against. Measuring the avatar instead of assuming a height keeps
+    // the fit correct for any rig and any import scale.
+    private bool CacheFitReferences()
+    {
+        Transform leftArm = targetAnimator.GetBoneTransform(HumanBodyBones.LeftUpperArm);
+        Transform rightArm = targetAnimator.GetBoneTransform(HumanBodyBones.RightUpperArm);
+        Transform leftLeg = targetAnimator.GetBoneTransform(HumanBodyBones.LeftUpperLeg);
+        Transform rightLeg = targetAnimator.GetBoneTransform(HumanBodyBones.RightUpperLeg);
+        Transform leftFoot = targetAnimator.GetBoneTransform(HumanBodyBones.LeftFoot);
+        Transform rightFoot = targetAnimator.GetBoneTransform(HumanBodyBones.RightFoot);
+
+        authoredScale = targetAnimator.transform.localScale;
+        authoredHeight = GetAvatarHeight();
+        shoulderToHipSpan = GetSpan(leftArm, rightArm, leftLeg, rightLeg);
+        shoulderToAnkleSpan = GetSpan(leftArm, rightArm, leftFoot, rightFoot);
+
+        if (authoredHeight <= 0f || shoulderToHipSpan <= 0f || shoulderToAnkleSpan <= 0f)
+        {
+            Debug.LogError(
+                "HumanoidPoseDriver: the avatar has no measurable height or body span.",
+                this
+            );
+
+            return false;
+        }
+
+        return true;
+    }
+
+    private static float GetSpan(
+        Transform leftTop,
+        Transform rightTop,
+        Transform leftBottom,
+        Transform rightBottom)
+    {
+        if (leftBottom == null || rightBottom == null)
+        {
+            return 0f;
+        }
+
+        Vector3 top = (leftTop.position + rightTop.position) * 0.5f;
+        Vector3 bottom = (leftBottom.position + rightBottom.position) * 0.5f;
+
+        return Vector3.Distance(top, bottom);
+    }
+
+    private float GetAvatarHeight()
+    {
+        Renderer[] renderers = targetAnimator.GetComponentsInChildren<Renderer>();
+
+        if (renderers.Length == 0)
+        {
+            return 0f;
+        }
+
+        Bounds bounds = renderers[0].bounds;
+
+        for (int i = 1; i < renderers.Length; i++)
+        {
+            bounds.Encapsulate(renderers[i].bounds);
+        }
+
+        return bounds.size.y;
+    }
+
+    // Fits the avatar to the measured body every frame. The first body after a
+    // gap is fitted immediately, and later measurements are smoothed so tracker
+    // jitter does not visibly resize the avatar.
+    private void UpdateFit()
+    {
+        if (bodyTracker.BodyDetected)
+        {
+            lastBodyTime = Time.unscaledTime;
+        }
+        else if (IsFitted && Time.unscaledTime - lastBodyTime > FitResetSeconds)
+        {
+            // Someone else may be standing in front of the mirror now.
+            IsFitted = false;
+        }
+
+        if (TryMeasureBody(out float span, out bool usesAnkles))
+        {
+            float referenceSpan = usesAnkles ? shoulderToAnkleSpan : shoulderToHipSpan;
+
+            float targetScale = Mathf.Clamp(
+                span / referenceSpan,
+                MinimumHeight / authoredHeight,
+                MaximumHeight / authoredHeight
+            );
+
+            if (IsFitted)
+            {
+                float blend = 1f - Mathf.Exp(-Time.deltaTime / FitSmoothingSeconds);
+
+                appliedScale = Mathf.Lerp(appliedScale, targetScale, blend);
+            }
+            else
+            {
+                appliedScale = targetScale;
+                IsFitted = true;
+
+                float fittedHeight = authoredHeight * appliedScale;
+
+                Debug.Log(
+                    $"HumanoidPoseDriver: sized the avatar to {fittedHeight:F2} m from " +
+                    $"a {(usesAnkles ? "shoulder-to-ankle" : "shoulder-to-hip")} span " +
+                    $"of {span:F2} m.",
+                    this
+                );
+            }
+        }
+
+        targetAnimator.transform.localScale = authoredScale * appliedScale;
+    }
+
+    // Measures the tracked body against the same joints the avatar was measured
+    // with. The ankles are preferred because that span covers most of the body;
+    // when they are out of frame the shoulder-to-hip span stands in for it.
+    private bool TryMeasureBody(out float span, out bool usesAnkles)
+    {
+        span = 0f;
+        usesAnkles = false;
+
+        IReadOnlyList<Vector3> cameraSpace = bodyTracker.CameraSpaceLandmarks;
+        IReadOnlyList<Vector3> normalized = bodyTracker.Landmarks;
+
+        if (cameraSpace == null || normalized == null ||
+            cameraSpace.Count < LandmarkCount || normalized.Count < LandmarkCount)
+        {
+            return false;
+        }
+
+        if (!IsInFrame(normalized[LeftShoulderLandmark]) ||
+            !IsInFrame(normalized[RightShoulderLandmark]) ||
+            !IsInFrame(normalized[LeftHipLandmark]) ||
+            !IsInFrame(normalized[RightHipLandmark]))
+        {
+            return false;
+        }
+
+        if (!TryGetJointMid(cameraSpace, LeftShoulderLandmark, RightShoulderLandmark,
+                out Vector3 shoulderMid) ||
+            !TryGetJointMid(cameraSpace, LeftHipLandmark, RightHipLandmark,
+                out Vector3 hipMid))
+        {
+            return false;
+        }
+
+        Vector3 lowerMid = hipMid;
+
+        usesAnkles =
+            IsInFrame(normalized[LeftAnkleLandmark]) &&
+            IsInFrame(normalized[RightAnkleLandmark]) &&
+            TryGetJointMid(cameraSpace, LeftAnkleLandmark, RightAnkleLandmark,
+                out lowerMid);
+
+        // A single landmark depth that landed on the background would fake a
+        // much longer or shorter body.
+        float minDepth = Mathf.Min(shoulderMid.z, Mathf.Min(hipMid.z, lowerMid.z));
+        float maxDepth = Mathf.Max(shoulderMid.z, Mathf.Max(hipMid.z, lowerMid.z));
+
+        if (maxDepth - minDepth > MaximumDepthSpread)
+        {
+            return false;
+        }
+
+        span = Vector3.Distance(shoulderMid, lowerMid);
+
+        return true;
+    }
+
+    private static bool TryGetJointMid(
+        IReadOnlyList<Vector3> landmarks,
+        int left,
+        int right,
+        out Vector3 mid)
+    {
+        mid = (landmarks[left] + landmarks[right]) * 0.5f;
+
+        return landmarks[left].z > 0f && landmarks[right].z > 0f;
+    }
+
+    private static bool IsInFrame(Vector3 normalized)
+    {
+        return normalized.x >= 0f && normalized.x <= 1f &&
+            normalized.y >= 0f && normalized.y <= 1f;
     }
 }

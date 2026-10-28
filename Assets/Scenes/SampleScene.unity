@@ -772,7 +772,7 @@ MonoBehaviour:
   targetAnimator: {fileID: 490841113}
   followHipsPosition: 1
   positionScale: 1
-  minimumDistance: 1.2
+  minimumDistance: 0.6
   smoothing: 12
 --- !u!95 &490841113 stripped
 Animator:
@@ -1987,7 +1987,7 @@ MonoBehaviour:
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
   m_GameObject: {fileID: 1882861246}
-  m_Enabled: 1
+  m_Enabled: 0
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: ab5c32a513fc4554285751027955412b, type: 3}
   m_Name: 
@@ -2170,7 +2170,6 @@ MonoBehaviour:
   bodyTracker: {fileID: 1882861247}
   colorFeed: {fileID: 964276774}
   poseDriver: {fileID: 490841112}
-  avatarHeight: 1.5
   avatar: {fileID: 490841113}
 --- !u!114 &1987654320
 MonoBehaviour:
