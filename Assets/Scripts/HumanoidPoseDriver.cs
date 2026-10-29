@@ -10,12 +10,19 @@ using UnityEngine;
 //
 // The avatar is fitted per bone instead of by one uniform scale. At Start the
 // length of each tracked segment is measured on the avatar's own skeleton, and
-// every frame each bone is scaled until that segment matches the same segment
-// on the person. The torso supplies the overall scale, the clavicles set the
-// shoulder width, and the arms and legs stretch independently, so a short torso
-// or long arms keep their own proportions instead of inheriting a shoulder
-// width. The avatar is anchored at the tracked hips, which are in meters, so
-// walking toward or away from the mirror moves it without resizing it.
+// each bone is scaled until that segment matches the same segment on the
+// person. The torso supplies the overall scale, the clavicles set the shoulder
+// width, and the arms and legs hold their own proportions, so a short torso or
+// long arms keep their own shape instead of inheriting a shoulder width.
+//
+// The fit is measured from the first seconds of good tracking and then locked.
+// A depth sample is good enough to size a body once, but not to resize it every
+// frame: depth on a segment that points at the camera comes from whatever
+// surface the sensor happened to see, so a live fit breathes and stretches with
+// the pose instead of staying on the person.
+//
+// The avatar is anchored at the tracked hips, which are in meters, so walking
+// toward or away from the mirror moves it without resizing it.
 public class HumanoidPoseDriver : MonoBehaviour
 {
     public bool HasValidPose { get; private set; }
@@ -36,6 +43,11 @@ public class HumanoidPoseDriver : MonoBehaviour
     // sample, not a differently proportioned body.
     private const float MinimumProportionRatio = 0.5f;
     private const float MaximumProportionRatio = 2f;
+
+    // A segment leaning further toward the camera than this share of its own
+    // length takes most of that length from depth, so it does not measure the
+    // body and must not be locked in as a proportion.
+    private const float MaximumForeshorteningRatio = 0.5f;
 
     private const int LeftShoulderLandmark = 11;
     private const int RightShoulderLandmark = 12;
@@ -89,6 +101,15 @@ public class HumanoidPoseDriver : MonoBehaviour
     [SerializeField]
     [Min(0f)]
     private float smoothing = 12f;
+
+    [Tooltip(
+        "Seconds of good tracking to measure the proportions over before they " +
+        "are locked. 0 locks on the first measurement. The fit is only measured " +
+        "again after the body has been lost for a while."
+    )]
+    [SerializeField]
+    [Min(0f)]
+    private float fitLockSeconds = 1.5f;
 
     private struct LimbBone
     {
@@ -144,6 +165,9 @@ public class HumanoidPoseDriver : MonoBehaviour
     private float torsoRatio = 1f;
     private float shoulderRatio = 1f;
     private float lastBodyTime = float.NegativeInfinity;
+
+    private bool fitLocked;
+    private float fitMeasuredSeconds;
 
     private void Start()
     {
@@ -588,12 +612,17 @@ public class HumanoidPoseDriver : MonoBehaviour
         return true;
     }
 
-    // Measures every tracked segment and moves each ratio toward it. The torso
-    // is the reference: a segment that measures far outside the torso's scale is
-    // a bad depth sample, so it keeps the last good value instead of collapsing
-    // the avatar.
+    // Measures every tracked segment and moves each ratio toward it, until the
+    // proportions are locked. The torso is the reference: a segment that
+    // measures far outside the torso's scale is a bad depth sample, so it keeps
+    // the last good value instead of collapsing the avatar.
     private void UpdateFit()
     {
+        if (fitLocked)
+        {
+            return;
+        }
+
         if (!TryMeasureTorso(out float torsoLength))
         {
             return;
@@ -672,6 +701,24 @@ public class HumanoidPoseDriver : MonoBehaviour
                 this
             );
         }
+
+        fitMeasuredSeconds += Time.deltaTime;
+
+        if (fitMeasuredSeconds >= fitLockSeconds)
+        {
+            LockFit();
+        }
+    }
+
+    private void LockFit()
+    {
+        fitLocked = true;
+
+        Debug.Log(
+            $"HumanoidPoseDriver: locked the fit at torso {torsoRatio:F2}x, " +
+            $"shoulders {shoulderRatio:F2}x.",
+            this
+        );
     }
 
     private static void UpdateBoneRatio(
@@ -725,6 +772,8 @@ public class HumanoidPoseDriver : MonoBehaviour
     private void ResetFit()
     {
         IsFitted = false;
+        fitLocked = false;
+        fitMeasuredSeconds = 0f;
         hasPlacedRoot = false;
         hasTorsoRatio = false;
         hasShoulderRatio = false;
@@ -778,7 +827,8 @@ public class HumanoidPoseDriver : MonoBehaviour
 
         length = Vector3.Distance(start, end);
 
-        return length > 0f;
+        return length > 0f &&
+            Mathf.Abs(start.z - end.z) <= length * MaximumForeshorteningRatio;
     }
 
     private bool TryGetJointMid(int leftLandmark, int rightLandmark, out Vector3 mid)
